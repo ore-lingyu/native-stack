@@ -1,0 +1,53 @@
+为什么要打印函数调用堆栈？
+
+打印调用堆栈可以直接把问题发生时的函数调用关系打出来，非常有利于理解函数调用关系。比如函数A可能被B/C/D调用，如果只看代码，B/C/D谁调用A都有可能，如果打印出调用堆栈，直接就把谁调的打出来了。
+
+不仅如此，打印函数调用堆栈还有另一个好处。在Android代码里，函数命名很多雷同的，虚函数调用，几个类里的函数名相同等，即使用source insight工具看也未必容易看清函数调用关系。如果用了堆栈打印，很容易看到函数调用逻辑。
+
+"main" prio=5 tid=1 Native
+  | group="main" sCount=1 dsCount=0 obj=0x748ef6b8 self=0xa638b400
+  | sysTid=1774 nice=0 cgrp=default sched=0/0 handle=0xaa74b534
+  | state=S schedstat=( 0 0 0 ) utm=18 stm=193 core=0 HZ=100
+  | stack=0xbf403000-0xbf405000 stackSize=8MB
+  | held mutexes=
+  kernel: SyS_epoll_wait+0x23c/0x2d1
+  kernel: SyS_epoll_pwait+0x70/0xe1
+  kernel: sysenter_do_call+0x12/0x22
+  native: #00 pc ffffe424  [vdso] (__kernel_vsyscall+16)
+  native: #01 pc 000779ab  /system/lib/libc.so (__epoll_pwait+43)
+  native: #02 pc 00020cb0  /system/lib/libc.so (epoll_pwait+112)
+  native: #03 pc 00020d0e  /system/lib/libc.so (epoll_wait+62)
+  native: #04 pc 00018f1b  /system/lib/libutils.so (_ZN7android6Looper9pollInnerEi+203)
+  native: #05 pc 00018d84  /system/lib/libutils.so (_ZN7android6Looper8pollOnceEiPiS1_PPv+68)
+  native: #06 pc 000d38c3  /system/lib/libandroid_runtime.so (_ZN7android18NativeMessageQueue8pollOnceEP7_JNIEnvP8_jobjecti+77)
+  native: #07 pc 000d3934  /system/lib/libandroid_runtime.so (???)
+  native: #08 pc 007b1c0c  /system/framework/x86/boot-framework.oat (Java_android_os_MessageQueue_nativePollOnce__JI+136)
+  at android.os.MessageQueue.nativePollOnce(Native method)
+  at android.os.MessageQueue.next(MessageQueue.java:323)
+  at android.os.Looper.loop(Looper.java:136)
+  at android.app.ActivityThread.main(ActivityThread.java:6119)
+  at java.lang.reflect.Method.invoke!(Native method)
+  at com.android.internal.os.ZygoteInit$MethodAndArgsCaller.run(ZygoteInit.java:886)
+  at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:776)
+
+
+
+C++代码架构有时比较复杂，可以使用android::CallStack将所在线程的调用栈打印出来
+基本用法：
+
+cpp文件里面
+
+1、进入对应的cpp文件，放开#define LOG_NDEBUG 0注释，且变成#define LOG_NDEBUG 1
+
+2、声明头文件
+#include<utils/CallStack.h>
+#include<utils/Log.h>
+
+3、调用方法：
+android::CallStack stack;
+stack.update();
+stack.log(debug); //输出到logcat
+
+4、mk或者bp中需要链接以下so库：
+libutils
+libcutils
